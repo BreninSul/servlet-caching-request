@@ -21,23 +21,44 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-package io.github.breninsul.servlet.logging.caching.request
 
+package io.github.breninsul.servlet.caching.request
+
+import io.github.breninsul.servlet.caching.ServletInputStreamDelegate
+import jakarta.servlet.ServletInputStream
 import jakarta.servlet.http.HttpServletRequest
-import java.nio.charset.Charset
+import java.io.File
+import java.io.InputStream
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.*
+import kotlin.io.path.deleteIfExists
 
-interface ServletCachingRequestWrapper : HttpServletRequest {
-    fun bodyContentByteArray(): ByteArray?
+open class ServletCachingRequestWrapperFile(
+    protected open val request: HttpServletRequest,
+) : ServletCachingRequestWrapper,
+    HttpServletRequest by request {
+    val tempFile: Path
 
-    fun clear()
-
-    fun bodyContentString(): String? {
-        val byteArray = bodyContentByteArray()
-        if (byteArray == null) {
-            return null
-        }
-        return String(byteArray, getContentEncoding())
+    init {
+        tempFile = kotlin.io.path.createTempFile("ServletCachingRequestWrapperFile_${request.requestId}_${UUID.randomUUID()}")
+        request.inputStream.toFile(tempFile.toFile())
     }
 
-    fun getContentEncoding(): Charset = characterEncoding?.let { Charset.forName(characterEncoding) } ?: Charset.defaultCharset()
+    protected open fun InputStream.toFile(file: File) {
+        use { input ->
+            file.outputStream().use { input.copyTo(it) }
+        }
+    }
+
+    override fun bodyContentByteArray(): ByteArray? = getInputStream().readAllBytes()
+
+    override fun clear() {
+        tempFile.deleteIfExists()
+    }
+
+    override fun getInputStream(): ServletInputStream {
+        val inputStream = Files.newInputStream(tempFile)
+        return ServletInputStreamDelegate(inputStream)
+    }
 }

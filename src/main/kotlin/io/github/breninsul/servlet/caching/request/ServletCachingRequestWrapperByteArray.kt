@@ -22,8 +22,9 @@
  * SOFTWARE.
  */
 
-package io.github.breninsul.servlet.logging.caching.request
+package io.github.breninsul.servlet.caching.request
 
+import io.github.breninsul.servlet.caching.ServletInputStreamDelegate
 import jakarta.servlet.ServletInputStream
 import jakarta.servlet.http.HttpServletRequest
 
@@ -31,15 +32,15 @@ open class ServletCachingRequestWrapperByteArray(
     protected open val request: HttpServletRequest,
 ) : ServletCachingRequestWrapper,
     HttpServletRequest by request {
-    fun getBody(): ByteArray = body!!
+    fun getBody(): ByteArray = bodyValue
 
-    private var body: ByteArray? = request.inputStream.readAllBytes()
+    protected open var bodyValue: ByteArray = request.inputStream.use { it.readAllBytes() }
 
-    override fun bodyContentByteArray(): ByteArray? = body
+    override fun bodyContentByteArray(): ByteArray? = bodyValue
 
     override fun clear() {
-        body = null
+        bodyValue = ByteArray(0)
     }
 
-    override fun getInputStream(): ServletInputStream = ServletBodyInputStreamWrapper(body!!.inputStream())
+    override fun getInputStream(): ServletInputStream = ServletInputStreamDelegate(bodyValue.inputStream())
 }

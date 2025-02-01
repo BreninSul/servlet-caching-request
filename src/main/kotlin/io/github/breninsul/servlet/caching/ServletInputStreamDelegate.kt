@@ -22,42 +22,41 @@
  * SOFTWARE.
  */
 
-package io.github.breninsul.servlet.logging.caching.request
+package io.github.breninsul.servlet.caching
 
+import jakarta.servlet.ReadListener
 import jakarta.servlet.ServletInputStream
-import jakarta.servlet.http.HttpServletRequest
-import java.io.File
 import java.io.InputStream
-import java.nio.file.Files
-import java.nio.file.Path
-import java.util.*
-import kotlin.io.path.deleteIfExists
 
-open class ServletCachingRequestWrapperFile(
-    protected open val request: HttpServletRequest,
-) : ServletCachingRequestWrapper,
-    HttpServletRequest by request {
-    val tempFile: Path
+open class ServletInputStreamDelegate(open val delegate: InputStream) : ServletInputStream() {
+    protected var isFinishedValue = false
 
-    init {
-        tempFile = kotlin.io.path.createTempFile("ServletCachingRequestWrapperFile_${request.requestId}_${UUID.randomUUID()}")
-        request.inputStream.toFile(tempFile.toFile())
-    }
 
-    protected open fun InputStream.toFile(file: File) {
-        use { input ->
-            file.outputStream().use { input.copyTo(it) }
+    override fun read(): Int {
+        val data = this.delegate.read()
+        if (data == -1) {
+            this.isFinishedValue = true
         }
+        return data
     }
 
-    override fun bodyContentByteArray(): ByteArray? = getInputStream().readAllBytes()
-
-    override fun clear() {
-        tempFile.deleteIfExists()
+    override fun available(): Int {
+        return this.delegate.available()
     }
 
-    override fun getInputStream(): ServletInputStream {
-        val inputStream = Files.newInputStream(tempFile)
-        return ServletBodyInputStreamWrapper(inputStream)
+    override fun close() {
+        this.delegate.close()
+    }
+
+    override fun isFinished(): Boolean {
+        return this.isFinishedValue
+    }
+
+    override fun isReady(): Boolean {
+        return true
+    }
+
+    override fun setReadListener(readListener: ReadListener) {
+        throw UnsupportedOperationException()
     }
 }

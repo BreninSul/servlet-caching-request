@@ -21,34 +21,23 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+package io.github.breninsul.servlet.caching.request
 
-package io.github.breninsul.servlet.logging
+import jakarta.servlet.http.HttpServletRequest
+import java.nio.charset.Charset
 
-import io.github.breninsul.logging.HttpBodyMasking
-import io.github.breninsul.logging.HttpRequestBodyMasking
-import io.github.breninsul.logging.HttpResponseBodyMasking
-import io.github.breninsul.logging.HttpUriMasking
+interface ServletCachingRequestWrapper : HttpServletRequest {
+    fun bodyContentByteArray(): ByteArray?
 
-interface ServletUriMasking : HttpUriMasking
+    fun clear()
 
-interface ServletRequestBodyMasking : HttpRequestBodyMasking
+    fun bodyContentString(): String? {
+        val byteArray = bodyContentByteArray()
+        if (byteArray == null) {
+            return null
+        }
+        return String(byteArray, getContentEncoding())
+    }
 
-interface ServletResponseBodyMasking : HttpResponseBodyMasking
-
-open class ServletRequestBodyMaskingDelegate(
-    protected open val delegate: HttpBodyMasking,
-) : ServletRequestBodyMasking {
-    override fun mask(message: String?): String = delegate.mask(message)
-}
-
-open class ServletResponseBodyMaskingDelegate(
-    protected open val delegate: HttpBodyMasking,
-) : ServletResponseBodyMasking {
-    override fun mask(message: String?): String = delegate.mask(message)
-}
-
-open class ServletUriMaskingDelegate(
-    protected open val delegate: HttpUriMasking,
-) : ServletUriMasking {
-    override fun mask(uri: String?): String = delegate.mask(uri)
+    fun getContentEncoding(): Charset = characterEncoding?.let { Charset.forName(characterEncoding) } ?: Charset.defaultCharset()
 }
