@@ -60,12 +60,10 @@ class ServletCachingRequestWrapperFileTest {
         `when`(mockRequest.requestId).thenReturn("12345")
 
         val wrapper = ServletCachingRequestWrapperFile(mockRequest)
-        val servletInputStream = wrapper.inputStream
-        val readData = servletInputStream.readAllBytes()
-
-        assertNotNull(servletInputStream)
-        assertArrayEquals(testData, readData)
-
+        assertNotNull(wrapper.inputStream)
+        assertArrayEquals(testData, wrapper.inputStream.use { it.readAllBytes() })
+        wrapper.reInitInputStream()
+        assertArrayEquals(testData, wrapper.inputStream.use { it.readAllBytes() })
         wrapper.clear()
     }
 

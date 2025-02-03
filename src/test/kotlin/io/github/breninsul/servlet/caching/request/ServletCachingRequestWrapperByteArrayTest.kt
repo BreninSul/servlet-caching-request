@@ -17,7 +17,7 @@ class ServletCachingRequestWrapperByteArrayTest {
         Mockito.`when`(mockRequest.inputStream).thenReturn(DelegatingServletInputStream(ByteArrayInputStream(testData)))
 
         val wrapper = ServletCachingRequestWrapperByteArray(mockRequest)
-        val body = wrapper.getBody()
+        val body = wrapper.bodyContentByteArray()
 
         assertArrayEquals(testData, body)
     }
@@ -42,7 +42,7 @@ class ServletCachingRequestWrapperByteArrayTest {
 
         val wrapper = ServletCachingRequestWrapperByteArray(mockRequest)
         wrapper.clear()
-        val clearedBody = wrapper.getBody()
+        val clearedBody = wrapper.bodyContentByteArray()
 
         assertArrayEquals(ByteArray(0), clearedBody)
     }
@@ -55,9 +55,9 @@ class ServletCachingRequestWrapperByteArrayTest {
 
         val wrapper = ServletCachingRequestWrapperByteArray(mockRequest)
         val inputStream: ServletInputStream = wrapper.getInputStream()
+        assertArrayEquals(testData, inputStream.use {  it.readAllBytes()})
+        wrapper.reInitInputStream()
+        assertArrayEquals(testData, inputStream.use {  it.readAllBytes()})
 
-        val result = inputStream.readAllBytes()
-
-        assertArrayEquals(testData, result)
     }
 }

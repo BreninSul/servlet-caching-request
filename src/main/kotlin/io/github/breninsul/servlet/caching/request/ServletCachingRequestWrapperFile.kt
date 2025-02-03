@@ -24,7 +24,8 @@
 
 package io.github.breninsul.servlet.caching.request
 
-import io.github.breninsul.servlet.caching.ServletInputStreamDelegate
+import io.github.breninsul.servlet.caching.exception.InputStreamReadAlreadyStartedException
+import io.github.breninsul.servlet.caching.io.ServletInputStreamDelegate
 import jakarta.servlet.ServletInputStream
 import jakarta.servlet.http.HttpServletRequest
 import java.io.File
@@ -34,16 +35,37 @@ import java.nio.file.Path
 import java.util.*
 import kotlin.io.path.deleteIfExists
 
+/**
+ * A wrapper for `HttpServletRequest` that caches the request body in a temporary file.
+ * This class allows multiple readings of the request body by storing the input stream content
+ * into a temporary file that persists until the `clear` function is called.
+ *
+ * This is particularly useful in scenarios where middleware or applications need to reuse
+ * the request data without consuming the input stream multiple times.
+ *
+ * It inherits from the `ServletCachingRequestWrapper` interface for consistent behavior and
+ * delegates unmodified `HttpServletRequest` methods to the original request instance.
+ *
+ * @property request the original `HttpServletRequest` being wrapped for caching.
+ * @property initReadAtStart a flag to indicate whether the request body should be read and cached
+ * immediately during initialization. Defaults to `true`.
+ *
+ * @constructor Initializes the wrapper around the given `HttpServletRequest`. If `initReadAtStart`
+ * is `true`, the request body will be cached during construction.
+ */
 open class ServletCachingRequestWrapperFile(
     protected open val request: HttpServletRequest,
+    protected open val initReadAtStart: Boolean = true
 ) : ServletCachingRequestWrapper,
     HttpServletRequest by request {
-    val tempFile: Path
-
+        open var tempFile: Path? = null
+    protected open var wrappedInputStream: ServletInputStreamDelegate = ServletInputStreamDelegate(request.inputStream)
     init {
-        tempFile = kotlin.io.path.createTempFile("ServletCachingRequestWrapperFile_${request.requestId}_${UUID.randomUUID()}")
-        request.inputStream.toFile(tempFile.toFile())
+        if (initReadAtStart){
+            initRead()
+        }
     }
+
 
     protected open fun InputStream.toFile(file: File) {
         use { input ->
@@ -51,14 +73,25 @@ open class ServletCachingRequestWrapperFile(
         }
     }
 
-    override fun bodyContentByteArray(): ByteArray? = getInputStream().readAllBytes()
+    override fun initRead() {
+        if (wrappedInputStream.isStarted) {
+            throw InputStreamReadAlreadyStartedException()
+        }
+        tempFile = kotlin.io.path.createTempFile("ServletCachingRequestWrapperFile_${request.requestId}_${UUID.randomUUID()}")
+        wrappedInputStream.use { it.toFile(tempFile!!.toFile()) }
+        reInitInputStream()
+    }
+
+
+    override fun bodyContentByteArray(): ByteArray = getInputStream().readAllBytes()
 
     override fun clear() {
-        tempFile.deleteIfExists()
+        tempFile?.deleteIfExists()
     }
 
-    override fun getInputStream(): ServletInputStream {
-        val inputStream = Files.newInputStream(tempFile)
-        return ServletInputStreamDelegate(inputStream)
+    override fun reInitInputStream() {
+        wrappedInputStream = ServletInputStreamDelegate(Files.newInputStream(tempFile))
     }
+
+    override fun getInputStream(): ServletInputStream = wrappedInputStream
 }

@@ -24,23 +24,65 @@
 
 package io.github.breninsul.servlet.caching.request
 
-import io.github.breninsul.servlet.caching.ServletInputStreamDelegate
+import io.github.breninsul.servlet.caching.io.ServletInputStreamDelegate
+import io.github.breninsul.servlet.caching.exception.InputStreamReadAlreadyStartedException
+import io.github.breninsul.servlet.caching.exception.ReadInitiationIsNotStartedException
 import jakarta.servlet.ServletInputStream
 import jakarta.servlet.http.HttpServletRequest
 
+/**
+ * A wrapper for `HttpServletRequest` that caches the request body internally as a byte array.
+ * This allows repeated access to the request body without re-reading the input stream.
+ *
+ * This class is useful when the request body needs to be consumed multiple times, such as in
+ * scenarios with filters or interceptors that must inspect the content without blocking downstream processing.
+ *
+ * The caching is performed by reading the input stream into a byte array during initialization or
+ * on-demand depending on the `initReadAtStart` parameter.
+ *
+ * @property request the original `HttpServletRequest` being wrapped for caching functionality.
+ * @property initReadAtStart flag indicating whether the input stream should be read immediately at the time of construction.
+ * By default, this is set to `true`.
+ *
+ * @constructor Initializes this wrapper around the given `HttpServletRequest`,
+ * reading the input stream immediately if `initReadAtStart` is set to `true`.
+ *
+ * Inherits from `ServletCachingRequestWrapper` for consistent caching methods and behavior,
+ * and delegates unmodified `HttpServletRequest` methods to the original request instance.
+ */
 open class ServletCachingRequestWrapperByteArray(
     protected open val request: HttpServletRequest,
+    protected open val initReadAtStart: Boolean = true
 ) : ServletCachingRequestWrapper,
     HttpServletRequest by request {
-    fun getBody(): ByteArray = bodyValue
+    constructor(request: HttpServletRequest) : this(request, true)
+    protected open var bodyValue: ByteArray? = null
+    protected open var wrappedInputStream: ServletInputStreamDelegate = ServletInputStreamDelegate(request.inputStream)
 
-    protected open var bodyValue: ByteArray = request.inputStream.use { it.readAllBytes() }
 
-    override fun bodyContentByteArray(): ByteArray? = bodyValue
+    init {
+        if (initReadAtStart){
+            initRead()
+        }
+    }
+
+    override fun initRead() {
+        if (wrappedInputStream.isStarted){
+            throw InputStreamReadAlreadyStartedException()
+        }
+        bodyValue = request.inputStream.use {  it.readAllBytes()}
+        reInitInputStream()
+    }
+
+    override fun bodyContentByteArray(): ByteArray =  bodyValue?:throw ReadInitiationIsNotStartedException()
 
     override fun clear() {
         bodyValue = ByteArray(0)
     }
 
-    override fun getInputStream(): ServletInputStream = ServletInputStreamDelegate(bodyValue.inputStream())
+    override fun reInitInputStream() {
+        wrappedInputStream = ServletInputStreamDelegate((bodyValue?:throw ReadInitiationIsNotStartedException()).inputStream())
+    }
+
+    override fun getInputStream(): ServletInputStream = wrappedInputStream
 }

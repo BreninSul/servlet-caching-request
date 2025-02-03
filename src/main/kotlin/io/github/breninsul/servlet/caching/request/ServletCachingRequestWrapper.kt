@@ -27,17 +27,15 @@ import jakarta.servlet.http.HttpServletRequest
 import java.nio.charset.Charset
 
 interface ServletCachingRequestWrapper : HttpServletRequest {
-    fun bodyContentByteArray(): ByteArray?
+    fun initRead()
+    fun bodyContentByteArray(): ByteArray
 
     fun clear()
 
-    fun bodyContentString(): String? {
+    fun bodyContentString(): String {
         val byteArray = bodyContentByteArray()
-        if (byteArray == null) {
-            return null
-        }
         return String(byteArray, getContentEncoding())
     }
-
+    fun reInitInputStream()
     fun getContentEncoding(): Charset = characterEncoding?.let { Charset.forName(characterEncoding) } ?: Charset.defaultCharset()
 }

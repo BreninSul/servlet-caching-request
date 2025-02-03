@@ -22,17 +22,21 @@
  * SOFTWARE.
  */
 
-package io.github.breninsul.servlet.caching
+package io.github.breninsul.servlet.caching.io
 
 import jakarta.servlet.ReadListener
 import jakarta.servlet.ServletInputStream
 import java.io.InputStream
 
-open class ServletInputStreamDelegate(open val delegate: InputStream) : ServletInputStream() {
+open class ServletInputStreamDelegate(protected open val delegate: InputStream, protected open val onCloseFunction: Function<Unit> = {}) : ServletInputStream() {
     protected var isFinishedValue = false
-
+        private set
+    protected var isStartedValue = false
+    val isStarted: Boolean
+        get() = isFinishedValue
 
     override fun read(): Int {
+        isStartedValue = true
         val data = this.delegate.read()
         if (data == -1) {
             this.isFinishedValue = true
@@ -46,6 +50,8 @@ open class ServletInputStreamDelegate(open val delegate: InputStream) : ServletI
 
     override fun close() {
         this.delegate.close()
+        this.isFinishedValue = true
+        onCloseFunction.apply { }
     }
 
     override fun isFinished(): Boolean {
@@ -53,10 +59,10 @@ open class ServletInputStreamDelegate(open val delegate: InputStream) : ServletI
     }
 
     override fun isReady(): Boolean {
-        return true
+        return (delegate as? ServletInputStream)?.isReady ?: true;
     }
 
     override fun setReadListener(readListener: ReadListener) {
-        throw UnsupportedOperationException()
+        return (delegate as? ServletInputStream)?.setReadListener(readListener) ?: throw UnsupportedOperationException()
     }
 }
