@@ -67,6 +67,7 @@ open class ServletCachingRequestWrapperFile(
     constructor(request: HttpServletRequest) : this(request, true)
 
     open var tempFile: Path? = null
+    protected open var fileSize: Long? = null
     protected open var wrappedInputStream: ServletInputStreamDelegate = ServletInputStreamDelegate(request.inputStream)
 
     init {
@@ -87,6 +88,7 @@ open class ServletCachingRequestWrapperFile(
             throw InputStreamReadAlreadyStartedException()
         }
         tempFile = kotlin.io.path.createTempFile("ServletCachingRequestWrapperFile_${request.requestId}_${UUID.randomUUID()}")
+        fileSize=Files.size(tempFile!!)
         wrappedInputStream.use { it.toFile(tempFile!!.toFile()) }
         reInitInputStream()
     }
@@ -111,4 +113,11 @@ open class ServletCachingRequestWrapperFile(
     }
 
     override fun getInputStream(): ServletInputStream = wrappedInputStream
+
+    override fun getContentLength(): Int {
+        return fileSize?.toInt()?:request.contentLength
+    }
+    override fun getContentLengthLong(): Long {
+        return fileSize?:request.contentLengthLong
+    }
 }

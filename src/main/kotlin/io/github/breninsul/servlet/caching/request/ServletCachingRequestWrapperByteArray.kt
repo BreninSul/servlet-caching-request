@@ -59,7 +59,6 @@ open class ServletCachingRequestWrapperByteArray(
     protected open var bodyValue: ByteArray? = null
     protected open var wrappedInputStream: ServletInputStreamDelegate = ServletInputStreamDelegate(request.inputStream)
 
-
     init {
         if (initReadAtStart){
             initRead()
@@ -92,4 +91,11 @@ open class ServletCachingRequestWrapperByteArray(
     }
 
     override fun getInputStream(): ServletInputStream = wrappedInputStream
+
+    override fun getContentLength(): Int {
+        return bodyValue?.size?:request.contentLength
+    }
+    override fun getContentLengthLong(): Long {
+        return bodyValue?.size?.toLong()?:request.contentLengthLong
+    }
 }

@@ -6,7 +6,7 @@ add the following dependency:
 ````kotlin
 dependencies {
 //Other dependencies
-    implementation("io.github.breninsul:servlet-caching-request:1.1.2")
+    implementation("io.github.breninsul:servlet-caching-request:1.1.3")
 //Other dependencies
 }
 
