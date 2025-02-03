@@ -28,6 +28,7 @@ import java.nio.charset.Charset
 
 interface ServletCachingRequestWrapper : HttpServletRequest {
     fun initRead()
+    fun readIsInited(): Boolean
     fun bodyContentByteArray(): ByteArray
 
     fun clear()

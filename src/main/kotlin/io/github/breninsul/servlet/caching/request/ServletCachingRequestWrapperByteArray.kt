@@ -74,7 +74,14 @@ open class ServletCachingRequestWrapperByteArray(
         reInitInputStream()
     }
 
-    override fun bodyContentByteArray(): ByteArray =  bodyValue?:throw ReadInitiationIsNotStartedException()
+    override fun readIsInited(): Boolean =bodyValue!=null
+
+    override fun bodyContentByteArray(): ByteArray {
+        if (!readIsInited()){
+            throw ReadInitiationIsNotStartedException()
+        }
+        return bodyValue?:throw ReadInitiationIsNotStartedException()
+    }
 
     override fun clear() {
         bodyValue = ByteArray(0)

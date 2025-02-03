@@ -25,6 +25,7 @@
 package io.github.breninsul.servlet.caching.request
 
 import io.github.breninsul.servlet.caching.exception.InputStreamReadAlreadyStartedException
+import io.github.breninsul.servlet.caching.exception.ReadInitiationIsNotStartedException
 import io.github.breninsul.servlet.caching.io.ServletInputStreamDelegate
 import jakarta.servlet.ServletInputStream
 import jakarta.servlet.http.HttpServletRequest
@@ -36,32 +37,40 @@ import java.util.*
 import kotlin.io.path.deleteIfExists
 
 /**
- * A wrapper for `HttpServletRequest` that caches the request body in a temporary file.
- * This class allows multiple readings of the request body by storing the input stream content
- * into a temporary file that persists until the `clear` function is called.
+ * A wrapper for `HttpServletRequest` that caches the request body in a
+ * temporary file. This class allows multiple readings of the request body
+ * by storing the input stream content into a temporary file that persists
+ * until the `clear` function is called.
  *
- * This is particularly useful in scenarios where middleware or applications need to reuse
- * the request data without consuming the input stream multiple times.
+ * This is particularly useful in scenarios where middleware or
+ * applications need to reuse the request data without consuming the input
+ * stream multiple times.
  *
- * It inherits from the `ServletCachingRequestWrapper` interface for consistent behavior and
- * delegates unmodified `HttpServletRequest` methods to the original request instance.
+ * It inherits from the `ServletCachingRequestWrapper` interface for
+ * consistent behavior and delegates unmodified `HttpServletRequest`
+ * methods to the original request instance.
  *
- * @property request the original `HttpServletRequest` being wrapped for caching.
- * @property initReadAtStart a flag to indicate whether the request body should be read and cached
- * immediately during initialization. Defaults to `true`.
- *
- * @constructor Initializes the wrapper around the given `HttpServletRequest`. If `initReadAtStart`
- * is `true`, the request body will be cached during construction.
+ * @constructor Initializes the wrapper around the given
+ *    `HttpServletRequest`. If `initReadAtStart` is `true`, the request
+ *    body will be cached during construction.
+ * @property request the original `HttpServletRequest` being wrapped for
+ *    caching.
+ * @property initReadAtStart a flag to indicate whether the request body
+ *    should be read and cached immediately during initialization. Defaults
+ *    to `true`.
  */
 open class ServletCachingRequestWrapperFile(
     protected open val request: HttpServletRequest,
     protected open val initReadAtStart: Boolean = true
 ) : ServletCachingRequestWrapper,
     HttpServletRequest by request {
-        open var tempFile: Path? = null
+    constructor(request: HttpServletRequest) : this(request, true)
+
+    open var tempFile: Path? = null
     protected open var wrappedInputStream: ServletInputStreamDelegate = ServletInputStreamDelegate(request.inputStream)
+
     init {
-        if (initReadAtStart){
+        if (initReadAtStart) {
             initRead()
         }
     }
@@ -82,8 +91,16 @@ open class ServletCachingRequestWrapperFile(
         reInitInputStream()
     }
 
+    override fun readIsInited(): Boolean =tempFile!=null
 
-    override fun bodyContentByteArray(): ByteArray = getInputStream().readAllBytes()
+    override fun bodyContentByteArray(): ByteArray {
+        if (!readIsInited()) {
+            throw ReadInitiationIsNotStartedException()
+        }
+        val bytes=getInputStream().readAllBytes()
+        reInitInputStream()
+        return bytes
+    }
 
     override fun clear() {
         tempFile?.deleteIfExists()
