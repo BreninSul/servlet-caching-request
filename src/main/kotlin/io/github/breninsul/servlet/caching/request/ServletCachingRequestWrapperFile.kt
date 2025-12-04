@@ -87,7 +87,7 @@ open class ServletCachingRequestWrapperFile(
         if (wrappedInputStream.isStarted) {
             throw InputStreamReadAlreadyStartedException()
         }
-        tempFile = kotlin.io.path.createTempFile("ServletCachingRequestWrapperFile_${request.requestId}_${UUID.randomUUID()}")
+        tempFile = kotlin.io.path.createTempFile("ServletCachingRequestWrapperFile")
         fileSize=Files.size(tempFile!!)
         wrappedInputStream.use { it.toFile(tempFile!!.toFile()) }
         reInitInputStream()
